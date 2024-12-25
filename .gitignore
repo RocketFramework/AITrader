@@ -57,6 +57,7 @@ venv/Lib/site-packages/absl_py-2.1.0.dist-info/LICENSE
 venv/Lib/site-packages/absl_py-2.1.0.dist-info/METADATA
 venv/Lib/site-packages/absl_py-2.1.0.dist-info/RECORD
 venv/*
+__pycache__/
 venv/Lib/site-packages/absl_py-2.1.0.dist-info/top_level.txt
 venv/Lib/site-packages/absl_py-2.1.0.dist-info/WHEEL
 venv/Lib/site-packages/astunparse/__init__.py
