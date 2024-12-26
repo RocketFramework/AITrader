@@ -53,7 +53,7 @@ def fetch_company_details(symbol):
     response_data = response.json()
     return response_data
 
-def fetch_data():
+def fetch_data(existing_symbols):
     all_data = []
     for letter in "A":#BCDEFGHIJKLMNOPQRSTUVWXYZ":
         try:
@@ -78,6 +78,7 @@ def fetch_data():
                             "tradevolume": company_details["tdyTradeVolume"],
                             "marketCap": company_details["marketCap"],
                             "marketCapPercentage": company_details["marketCapPercentage"],
+                            "companyExists" : company_details["symbol"] in existing_symbols
                         }
                         all_data.append(combined_data)
             else:
@@ -86,19 +87,22 @@ def fetch_data():
             print(f"Error fetching data for {letter}: {e}")
     return all_data
 
-def rank_companies():
-    """Rank companies based on specified criteria."""
+def rank_companies(existing_symbols):
+    """
+    Rank companies based on specified criteria, ensuring companies specified in symbols
+    are not filtered out by turnover, marketCap, or marketCapPercentage thresholds.
+    """
     # Start the spinner in a separate thread
     spinner_thread = threading.Thread(target=spinning_cursor)
     spinner_thread.start()
     all_data = []
     try:
-        all_data = fetch_data()
-    finally:   
+        all_data = fetch_data(existing_symbols)
+    finally:
         done_event.set()  # Stop the spinner thread gracefully
         # Wait for spinner to finish
         spinner_thread.join()
-        
+
     # Check if data was collected
     if not all_data:
         print("No data collected. Exiting.")
@@ -107,20 +111,27 @@ def rank_companies():
     # Convert all_data to a DataFrame
     df = pd.DataFrame(all_data)
 
-    # Filter for companies with turnover above 50,000, but also allow smaller companies with high growth
-    df = df[df["turnover"] > 50000]  # Lowered the turnover threshold for smaller companies
+    # Add a column to mark companies in the symbols list
+    df["is_priority"] = df["symbol"].isin(existing_symbols).astype(int)
 
-    # Market Cap filter - include small but active companies
-    df = df[df["marketCap"] > 500_000]  # Lower the market cap threshold to include promising small companies
+    # Safe filtering
+    non_priority_companies = df[df["is_priority"] == 0]  # Companies not in the priority list
+    priority_companies = df[df["is_priority"] == 1]     # Companies in the priority list
 
-    # Keep companies with significant market cap percentage
-    df = df[df["marketCapPercentage"] > 0.05]  # Slightly reduce the percentage threshold for smaller players
+    # Apply filters only to non-priority companies
+    non_priority_companies = non_priority_companies[
+        (non_priority_companies["turnover"] > 50000) &
+        (non_priority_companies["marketCap"] > 500_000) &
+        (non_priority_companies["marketCapPercentage"] > 0.05)
+    ]
+
+    # Combine priority and non-priority companies
+    df = pd.concat([priority_companies, non_priority_companies], ignore_index=True)
 
     # Normalize and weight metrics
     df["normalized_change"] = df["percentageChange"] / df["percentageChange"].max()
     df["normalized_turnover"] = df["turnover"] / df["turnover"].max()
     df["normalized_volume"] = df["sharevolume"] / df["sharevolume"].max()
-    #take a trade volume vs share volume ratio
     df["normalized_marketCap"] = df["marketCap"] / df["marketCap"].max()
     df["normalized_marketCapPercentage"] = df["marketCapPercentage"] / df["marketCapPercentage"].max()
 
@@ -142,7 +153,14 @@ def rank_companies():
         df["normalized_marketCapPercentage"] * weights["normalized_marketCapPercentage"]
     )
 
-    # Return the top 20 companies
-    top_companies = df.sort_values(by="score", ascending=False).head(100)
-    return top_companies[["name", "symbol", "price", "percentageChange", "turnover", "sharevolume", "tradevolume", "marketCap", "marketCapPercentage", "score"]]
+    # Adjust scores to prioritize specified symbols
+    priority_boost = df["score"].max() * 1.5
+    df.loc[df["is_priority"] == 1, "score"] += priority_boost
 
+    # Sort companies by the adjusted score
+    top_companies = df.sort_values(by="score", ascending=False).head(100)
+
+    # Return the top 100 companies with relevant columns
+    return top_companies[
+        ["name", "symbol", "price", "percentageChange", "turnover", "sharevolume", "tradevolume", "marketCap", "marketCapPercentage", "score", "is_priority", "companyExists"]
+    ]

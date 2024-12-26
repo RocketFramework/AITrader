@@ -1,17 +1,13 @@
 {
     "symbols": [
-        {"symbol": "HNBF.N0000", "exchange": "CSELK"},
-        {"symbol": "CCS.N0000", "exchange": "CSELK"},
-        {"symbol": "JKH.N0000", "exchange": "CSELK"},
-        {"symbol": "SAMP.N0000", "exchange": "CSELK"},
-        {"symbol": "BIL.N0000", "exchange": "CSELK"},
-        {"symbol": "COOP.N0000", "exchange": "CSELK"},
+        {"symbol": "AMSL.N0000", "exchange": "CSELK"},
+        {"symbol": "TRAN.N0000", "exchange": "CSELK"},
+        {"symbol": "AHPL.N0000", "exchange": "CSELK"},
+        {"symbol": "CTC.N0000", "exchange": "CSELK"},
         {"symbol": "CITW.N0000", "exchange": "CSELK"},
         {"symbol": "DIAL.N0000", "exchange": "CSELK"},
         {"symbol": "EDEN.N0000", "exchange": "CSELK"},
-        {"symbol": "HBS.N0000", "exchange": "CSELK"},
-        {"symbol": "PKME.N0000", "exchange": "CSELK"},
-        {"symbol": "KCAB.N0000", "exchange": "CSELK"}
+        {"symbol": "HBS.N0000", "exchange": "CSELK"}
     ],
     "interval": "in_daily",
     "n_bars": 1000,

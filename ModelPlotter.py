@@ -89,4 +89,31 @@ class ModelPlotter:
         ax_inset.tick_params(axis="both", which="major", labelsize=8)
 
         plt.show()
+    @staticmethod
+    def plot_predictions(data, predictions, symbol):
+        """
+        Plots the actual close prices and the buy/sell signals as predicted by the model.
 
+        :param data: DataFrame containing the stock data.
+        :param predictions: The predicted signals (buy/sell/hold).
+        :param symbol: The stock symbol being analyzed.
+        """
+        plt.figure(figsize=(14, 7))
+
+        # Plot close prices
+        plt.plot(data.index, data['close'], label='Close Price', color='blue')
+
+        # Plot buy signals
+        buy_signals = data[predictions == 1]
+        plt.scatter(buy_signals.index, buy_signals['close'], label='Buy Signal', color='green', marker='^', alpha=1)
+
+        # Plot sell signals
+        sell_signals = data[predictions == -1]
+        plt.scatter(sell_signals.index, sell_signals['close'], label='Sell Signal', color='red', marker='v', alpha=1)
+
+        plt.title(f"Trading Signals for {symbol}")
+        plt.xlabel("Date")
+        plt.ylabel("Close Price")
+        plt.legend()
+        plt.grid()
+        plt.show()
