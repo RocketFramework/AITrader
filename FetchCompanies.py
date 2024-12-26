@@ -55,7 +55,7 @@ def fetch_company_details(symbol):
 
 def fetch_data(existing_symbols):
     all_data = []
-    for letter in "A":#BCDEFGHIJKLMNOPQRSTUVWXYZ":
+    for letter in "ABCDEFGHIJKLMNOPQRSTUVWXYZ":
         try:
             data = fetch_company_data(letter)
             # Check if the response contains the key 'reqAlphabetical'
@@ -158,7 +158,7 @@ def rank_companies(existing_symbols):
     df.loc[df["is_priority"] == 1, "score"] += priority_boost
 
     # Sort companies by the adjusted score
-    top_companies = df.sort_values(by="score", ascending=False).head(100)
+    top_companies = df.sort_values(by="score", ascending=False).head(120)
 
     # Return the top 100 companies with relevant columns
     return top_companies[

@@ -17,7 +17,7 @@ from sklearn.preprocessing import MinMaxScaler
 
 
 # Function to calculate RSI - Relative Strength Index
-def calculate_rsi(data, window=14):
+def calculate_rsi(data, window=7):
     delta = data['close'].diff()
     gain = (delta.where(delta > 0, 0)).rolling(window=window).mean()
     loss = (-delta.where(delta < 0, 0)).rolling(window=window).mean()
@@ -61,33 +61,6 @@ def detect_candlestick_patterns(data):
     
     return bullish_engulfing.astype(int), bearish_engulfing.astype(int)
 
-def generate_signals(data):
-    # Define RSI thresholds
-    buy_threshold = 30
-    sell_threshold = 70
-    buffer_zone = 2  # Number of periods to wait after crossing RSI thresholds
-
-    # Generate initial signals based on RSI
-    data['Signal'] = data['RSI'].apply(
-        lambda x: 1 if x < buy_threshold else (-1 if x > sell_threshold else 0)
-    )
-    
-    # Implement a buffer zone to prevent immediate signal reversals
-    data['Signal'] = data['Signal'].shift(1)  # Shift signals to avoid instant reversal
-
-    # Optional: Add a confirmation rule using moving averages (e.g., 50-period MA)
-    data['Short_MA'] = data['close'].rolling(window=50).mean()
-    data['Long_MA'] = data['close'].rolling(window=200).mean()
-
-    # Update signal based on trend confirmation (only allow buys in uptrend and sells in downtrend)
-    data['Signal'] = data.apply(
-        lambda row: 1 if row['Signal'] == 1 and row['close'] > row['Short_MA'] else
-        (-1 if row['Signal'] == -1 and row['close'] < row['Short_MA'] else 0),
-        axis=1
-    )
-
-    return data
-
 # Modified get_stock_data function
 def get_stock_data(symbol, exchange, interval=Interval.in_daily, n_bars=5000):
     tv = TvDatafeed(username="None", password="None")  # Replace with your credentials
@@ -110,7 +83,8 @@ def get_stock_data(symbol, exchange, interval=Interval.in_daily, n_bars=5000):
             data['Bullish_Engulfing'], data['Bearish_Engulfing'] = detect_candlestick_patterns(data)
             
             # Define a simplistic buy/sell signal
-            data = generate_signals(data) #data['RSI'].apply(lambda x: 1 if x < 35 else (-1 if x > 65 else 0))
+            data['Signal'] = data['RSI'].apply(lambda x: 1 if x < 35 else (-1 if x > 70 else 0))
+
             
             return data
         else:
@@ -170,6 +144,7 @@ if __name__ == "__main__":
     interval = getattr(Interval, config["interval"], Interval.in_daily)
     n_bars = config["n_bars"]
     ploter = ModelPlotter()
+    important_signal_array = []
     for index, row in top_40.iterrows():
         symbol = row["symbol"]
         exchange = "CSELK"
@@ -197,11 +172,12 @@ if __name__ == "__main__":
             results = backtester.backtest_strategy(data, best_model)
 
             # Generate predictions for visualization
-            predictions = best_model.predict(X)
-            ploter.plot_predictions(data.loc[X.index], predictions, symbol)
+            #predictions = best_model.predict(X)
+            #ploter.plot_predictions(data.loc[X.index], predictions, symbol)
             
             # Check the latest value for buying opportunity
             latest_record = data.tail(1)
+
             if not latest_record.empty:
                 latest_input = latest_record[['SMA', 'RSI', 'BB_upper', 'BB_lower', 'MACD', 'Signal_line', 
                                               'MACD_hist', 'Rel_Volume', 'Price_Change_Pct', 
@@ -211,8 +187,10 @@ if __name__ == "__main__":
                     if (predicted_signal == 1) and company_bought:
                         print(f"BUY signal for {symbol} on {latest_record.index[0]}.")
                     elif (predicted_signal == 1):
+                        important_signal_array.append(f"**BUY signal for {symbol} on {latest_record.index[0]}.")
                         print(f"**BUY signal for {symbol} on {latest_record.index[0]}.")
                     elif (predicted_signal == -1) and company_bought:
+                        important_signal_array.append(f"**SELL signal for {symbol} on {latest_record.index[0]}.")
                         print(f"**SELL signal for {symbol} on {latest_record.index[0]}.")
                     elif predicted_signal == -1:
                         print(f"SELL signal for {symbol} on {latest_record.index[0]}.")
@@ -224,3 +202,5 @@ if __name__ == "__main__":
                 print(f"No recent data available for {symbol}.")
         else:
             print(f"Skipping {symbol} due to insufficient data.")
+            
+    print(important_signal_array)
