@@ -1,16 +1,15 @@
 {
     "symbols": [
-        {"symbol": "AMSL.N0000", "exchange": "CSELK"},
-        {"symbol": "TRAN.N0000", "exchange": "CSELK"},
-        {"symbol": "AHPL.N0000", "exchange": "CSELK"},
-        {"symbol": "CTC.N0000", "exchange": "CSELK"},
-        {"symbol": "CITW.N0000", "exchange": "CSELK"},
-        {"symbol": "DIAL.N0000", "exchange": "CSELK"},
-        {"symbol": "EDEN.N0000", "exchange": "CSELK"},
-        {"symbol": "HBS.N0000", "exchange": "CSELK"}
+        {"symbol": "CINS.N0000", "exchange": "CSELK", "bought": "3084.16"},
+        {"symbol": "TRAN.N0000", "exchange": "CSELK", "bought": "42.47"},
+        {"symbol": "CTC.N0000", "exchange": "CSELK", "bought": "1466.24"},
+        {"symbol": "CITW.N0000", "exchange": "CSELK", "bought": "2.12"},
+        {"symbol": "DIAL.N0000", "exchange": "CSELK", "bought": "11.83"},
+        {"symbol": "EDEN.N0000", "exchange": "CSELK", "bought": "34.38"},
+        {"symbol": "HBS.N0000", "exchange": "CSELK", "bought": "35.39"}
     ],
     "interval": "in_daily",
-    "n_bars": 1000,
+    "n_bars": 5000,
     "sms": {
         "account_sid": "your_twilio_account_sid",
         "auth_token": "your_twilio_auth_token",
