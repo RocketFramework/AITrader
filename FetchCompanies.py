@@ -55,7 +55,7 @@ def fetch_company_details(symbol):
 
 def fetch_data(existing_symbols):
     all_data = []
-    for letter in "ABCDEFGHIJKLMNOPQRSTUVWXYZ":
+    for letter in "A":#BCDEFGHIJKLMNOPQRSTUVWXYZ":
         try:
             data = fetch_company_data(letter)
             # Check if the response contains the key 'reqAlphabetical'
@@ -120,8 +120,8 @@ def rank_companies(existing_symbols):
 
     # Apply filters only to non-priority companies
     non_priority_companies = non_priority_companies[
-        (non_priority_companies["turnover"] > 50000) &
-        (non_priority_companies["marketCap"] > 500_000) &
+        (non_priority_companies["turnover"] > 500000) &
+        (non_priority_companies["marketCap"] > 50000000) &
         (non_priority_companies["marketCapPercentage"] > 0.05)
     ]
 

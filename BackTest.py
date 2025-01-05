@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 from sklearn.impute import SimpleImputer
 
@@ -71,8 +72,8 @@ class BackTest:
 
     def backtest_strategy(self, data, model):
         """
-        Backtest the trading strategy on historical data using the trained model.
-        
+        Enhanced backtesting strategy on historical data using the trained model.
+
         :param data: Historical stock data with features and signals.
         :param model: Trained machine learning model.
         :return: Backtesting results with cumulative returns and strategy evaluation.
@@ -82,66 +83,74 @@ class BackTest:
         cash = initial_balance   # Available cash
         portfolio_value = []     # Track portfolio value over time
         trades = []              # Store trades (buy/sell actions)
+        transaction_cost = 0.001  # 0.1% per trade
 
-        # Imputer to handle NaN values
-        imputer = SimpleImputer(strategy='mean')
-
-        # Required features for model prediction (matching training columns)
+        # Required features for model prediction
         required_columns = ['SMA', 'RSI', 'BB_upper', 'BB_lower', 'MACD', 'Signal_line', 
-                            'MACD_hist', 'Rel_Volume', 'Price_Change_Pct', 
-                            'Bullish_Engulfing', 'Bearish_Engulfing']
+                                              'MACD_hist', 'Rel_Volume', 'Price_Change_Pct', 
+                                              'Bullish_Engulfing', 'Bearish_Engulfing', 'Hammer']
 
         # Drop rows with missing target values
         data = data.dropna(subset=['Signal'])
 
-        # Ensure that only columns with valid features are passed (drop columns with all NaN values)
+        # Ensure that only valid columns are used
         features = data[required_columns]
         features = features.dropna(axis=1, how='all')  # Drop columns with all NaN values
 
-        # Apply imputation (imputer should be fit to the training data beforehand)
+        # Pre-impute features to avoid real-time fitting
+        imputer = SimpleImputer(strategy='mean')
         features_imputed = imputer.fit_transform(features)
 
-        # Process each row for prediction
         for i in range(len(data) - 1):  # Skip the last row for prediction
             row = data.iloc[i]
 
-            # Extract features in the same order as during training and ensure it's a DataFrame
+            # Prepare feature data
             feature_data = pd.DataFrame([row[required_columns].values], columns=required_columns)
-            
-            # Handle NaNs in features before prediction
             feature_data_imputed = imputer.transform(feature_data)
 
-            # Convert the imputed features back to a DataFrame with feature names
+            # Convert imputed array back to DataFrame to match training feature names
             feature_data_imputed_df = pd.DataFrame(feature_data_imputed, columns=required_columns)
 
-            # Make prediction
+            # Prediction
             prediction = model.predict(feature_data_imputed_df)[0]
 
-            if prediction == 1 and cash >= row['close']:  # BUY signal (check if you can afford)
-                position += 1
-                cash -= row['close']  # Deduct cash for buying one share
-                trades.append((row.name, "BUY", row['close']))
-            elif prediction == -1 and position > 0:  # SELL signal
-                position -= 1
-                cash += row['close']  # Add cash from selling one share
-                trades.append((row.name, "SELL", row['close']))
+            if prediction == 1:  # Confidence threshold for BUY
+                shares_to_buy = int(cash / row['close'])
+                if shares_to_buy > 0:
+                    position += shares_to_buy
+                    cash -= shares_to_buy * row['close']
+                    cash -= shares_to_buy * row['close'] * transaction_cost
+                    trades.append({"type": "BUY", "price": row['close'], "shares": shares_to_buy, "time": row.name})
+            elif prediction == -1:  # Confidence threshold for SELL
+                if position > 0:
+                    cash += position * row['close']
+                    cash -= position * row['close'] * transaction_cost
+                    trades.append({"type": "SELL", "price": row['close'], "shares": position, "time": row.name})
+                    position = 0
 
-            # Calculate current portfolio value
+            # Calculate portfolio value
             current_value = cash + (position * row['close'])
             portfolio_value.append(current_value)
 
-        # Final portfolio value (close any remaining positions)
-        final_value = cash + (position * data.iloc[-1]['close'])  # Ensure final position is liquidated
+        # Final portfolio value
+        final_value = cash + (position * data.iloc[-1]['close'])
         returns = ((final_value - initial_balance) / initial_balance) * 100
+
+        # Sharpe ratio (assuming daily returns)
+        daily_returns = pd.Series(portfolio_value).pct_change().dropna()
+        sharpe_ratio = daily_returns.mean() / daily_returns.std() * np.sqrt(252)  # Annualized
 
         print(f"Initial Balance: ${initial_balance}")
         print(f"Final Balance: ${final_value:.2f}")
         print(f"Total Returns: {returns:.2f}%")
+        print(f"Sharpe Ratio: {sharpe_ratio:.2f}")
         print(f"Number of Trades: {len(trades)}")
-        
+
         return {
             "portfolio_value": portfolio_value,
             "trades": trades,
             "final_balance": final_value,
-            "returns": returns
+            "returns": returns,
+            "sharpe_ratio": sharpe_ratio
         }
+
