@@ -58,7 +58,9 @@ def calculate_rsi_with_signals(data, period=14):
         # Sell Signal: RSI crosses below 70
         elif data['RSI'].iloc[i] < 70 and data['RSI'].iloc[i - 1] >= 70:
             data.loc[data.index[i], 'Signal'] = 'Sell'
-
+            
+    data['Signal'] = data['Signal'].fillna('Neutral')
+    
     return data[['RSI', 'Signal']]
 
 def calculate_stochastic_with_signals(data, period=14, smoothing_k=3, smoothing_d=3):
@@ -748,21 +750,6 @@ def calculate_final_signal(data):
         str: Final signal ("Buy", "Sell", or "Neutral").
     """
     
-        # Detect candlestick patterns
-    data["Bullish_Engulfing"] = (
-        (data["close"] > data["open"]) &
-        (data["close"].shift(1) < data["open"].shift(1)) &
-        (data["close"] > data["open"].shift(1)) &
-        (data["open"] < data["close"].shift(1))
-    )
-
-    data["Bearish_Engulfing"] = (
-        (data["close"] < data["open"]) &
-        (data["close"].shift(1) > data["open"].shift(1)) &
-        (data["open"] > data["close"].shift(1)) &
-        (data["close"] < data["open"].shift(1))
-    )
-    
     # Separate Momentum Indicators and Moving Averages
     momentum_indicators = [
         calculate_rsi_with_signals(data)['Signal'],
@@ -802,24 +789,24 @@ def calculate_final_signal(data):
     neutral_count = 0
     
     # Count signals for Momentum Indicators
-    for indicator in momentum_indicators:
-        action = data.get(indicator, "Neutral")
-        if action == "Buy":
-            buy_count += 1
-        elif action == "Sell":
-            sell_count += 1
-        else:
-            neutral_count += 1
+    for signals in momentum_indicators:
+        # Ensure 'Signal' contains no None values (replace with 'Neutral')
+        signals = signals.fillna('Neutral')
+        
+        # Count each type of signal
+        buy_count += (signals == 'Buy').sum()
+        sell_count += (signals == 'Sell').sum()
+        neutral_count += (signals == 'Neutral').sum()
     
     # Count signals for Moving Averages
-    for indicator in moving_averages:
-        action = data.get(indicator, "Neutral")
-        if action == "Buy":
-            buy_count += 1
-        elif action == "Sell":
-            sell_count += 1
-        else:
-            neutral_count += 1
+    for signals in moving_averages:
+        # Ensure 'Signal' contains no None values (replace with 'Neutral')
+        signals = signals.fillna('Neutral')
+        
+        # Count each type of signal
+        buy_count += (signals == 'Buy').sum()
+        sell_count += (signals == 'Sell').sum()
+        neutral_count += (signals == 'Neutral').sum()
     
     # Add candlestick pattern signals
     if data["Bullish_Engulfing"].iloc[-1]:
@@ -830,20 +817,62 @@ def calculate_final_signal(data):
         buy_count += 1
         
     # Determine final signal
-    if buy_count > sell_count:
-        final_signal = "Buy"
-    elif sell_count > buy_count:
-        final_signal = "Sell"
+    if (buy_count > sell_count) and (buy_count > neutral_count):
+        final_signal = 1
+    elif (sell_count > buy_count) and (sell_count > neutral_count):
+        final_signal = -1
     else:
-        final_signal = "Neutral"
+        final_signal = 0
     
-    return {
-        "Buy Signals": buy_count,
-        "Sell Signals": sell_count,
-        "Neutral Signals": neutral_count,
-        "Final Signal": final_signal
-    }
+    print(f"Buy Signals: {buy_count}, Sell Signals: {sell_count}, Neutral Signals: {neutral_count}, Final Signal: {final_signal}")
+    
+    rsi_data = calculate_rsi_with_signals(data)
+    rsi_data['Signal'] = rsi_data['Signal'].replace({
+        'Buy': 1,
+        'Sell': -1,
+        'Neutral': 0
+    })
 
+    rsi_data['Signal'] = rsi_data['Signal'].fillna(0)
+
+    return rsi_data['Signal']
+    # return {
+    #     "Buy Signals": buy_count,
+    #     "Sell Signals": sell_count,
+    #     "Neutral Signals": neutral_count,
+    #     "Final Signal": final_signal
+    # }
+
+def count_signals(indicator_data):
+    """
+    Count the number of Buy, Sell, and Neutral signals in the indicator data.
+
+    Parameters:
+        indicator_data (list of dict): List of dictionaries, where each contains a date and a signal.
+
+    Returns:
+        dict: A dictionary with counts for each signal type.
+    """
+    buy_count = 0
+    sell_count = 0
+    neutral_count = 0
+
+    # Iterate over the signals
+    for entry in indicator_data:
+        signal = entry.get("Signal", "Neutral")  # Default to "Neutral" if "Signal" key is missing
+        if signal == "Buy":
+            buy_count += 1
+        elif signal == "Sell":
+            sell_count += 1
+        else:
+            neutral_count += 1
+
+    return {
+        "Buy": buy_count,
+        "Sell": sell_count,
+        "Neutral": neutral_count
+    }
+    
 # Function to calculate MACD Histogram
 def calculate_macd(data):
     # Calculate the MACD line
@@ -986,16 +1015,20 @@ def get_stock_data(symbol, exchange, interval=Interval.in_daily, n_bars=5000):
             data['MACD_hist'] = macd_values['hist']
             data['Rel_Volume'] = calculate_relative_volume(data)
             data['Price_Change_Pct'] = calculate_price_change_pct(data)
+            print(f"Price change {data['Price_Change_Pct'] }")
             data = define_bullish_signal(data)
-            data['Signal'] = calculate_final_signal(data)['Final Signal']
+            final = 0
+            final = calculate_final_signal(data)
+            print(f"final signal {final}")
+            data['Signal'] = final
             
             #data['Bullish_Engulfing'], data['Bearish_Engulfing'] = detect_candlestick_patterns(data)
             
             # Apply the new logic in your pipeline
             
-            print(data[['SMA', 'RSI', 'BB_upper', 'BB_lower', 'MACD', 'Signal_line',
-            'MACD_hist', 'Rel_Volume', 'Price_Change_Pct',
-            'Bullish_Engulfing', 'Bearish_Engulfing', 'Hammer']].isna().sum())
+            # print(data[['SMA', 'RSI', 'BB_upper', 'BB_lower', 'MACD', 'Signal_line',
+            # 'MACD_hist', 'Rel_Volume', 'Price_Change_Pct',
+            # 'Bullish_Engulfing', 'Bearish_Engulfing', 'Hammer']].isna().sum())
 
             return data
         else:
@@ -1058,7 +1091,7 @@ if __name__ == "__main__":
     ploter = ModelPlotter()
     important_signal_array = []
     for index, row in top_40.iterrows():
-        symbol = "LIOC.N0000" #row["symbol"]
+        symbol = row["symbol"]
         exchange = "CSELK"
         company_bought = row["companyExists"]
         

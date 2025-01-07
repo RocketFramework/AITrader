@@ -139,6 +139,13 @@ class BackTest:
         # Sharpe ratio (assuming daily returns)
         daily_returns = pd.Series(portfolio_value).pct_change().dropna()
         sharpe_ratio = daily_returns.mean() / daily_returns.std() * np.sqrt(252)  # Annualized
+        
+        """if len(daily_returns) == 0 or daily_returns.std() == 0 or daily_returns.isna().any():
+            print("Warning: Invalid data for Sharpe ratio calculation.")
+            sharpe_ratio = np.nan
+        else:
+            sharpe_ratio = daily_returns.mean() / daily_returns.std() * np.sqrt(252)  # Annualized """
+
 
         print(f"Initial Balance: ${initial_balance}")
         print(f"Final Balance: ${final_value:.2f}")
